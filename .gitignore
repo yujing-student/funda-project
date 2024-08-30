@@ -11,3 +11,4 @@ qodana.yaml
 .idea/fileColors.xml
 .idea/modules.xml
 .idea/vcs.xml
+.vercel

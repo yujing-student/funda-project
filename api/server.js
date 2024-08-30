@@ -1,17 +1,15 @@
-// Importeerd npm pakket express uit de node_modules map
-import express from 'express'
-// Importeerd de zelfgemaakte functie fetchJson uit de ./helpers map
-import fetchJson from './helpers/fetch-json.js'
 
 
-function fetchJson(url, payload = {}) {
-    return fetch(url, payload)
-        .then(response => response.json())
-        .catch(error => {
-            console.error('Error:', error);
-            // Je kunt hier ook een custom error object teruggeven, bijvoorbeeld:
-            // return Promise.reject(new Error('Failed to fetch JSON'));
-        });
+ async function fetchJson(url, payload = {}) {
+    try{//de reden voor een try and catch is zotat er een betere error adhandeling is en dat ik de error in de console log kan zien
+        //en de then als die niet reageert dan gaat die automatisch naar de catch
+        return await fetch(url, payload)
+            .then((response) => response.json())//reageeer op de aanroep en pas de informatie aan aar een json
+
+    }catch (error){
+        console.error('Error:', error);
+    }
+
 }
 const path = require('path')
 const express = require('express')
@@ -23,7 +21,7 @@ const app = express()
 app.set('view engine', 'ejs')
 app.set('views', path.join(__dirname, '../views'))
 // Gebruik de map 'public-oud' voor statische resources, zoals stylesheets, afbeeldingen en client-side JavaScript
-app.use(express.static(path.join(__dirname, 'public')));
+ app.use(express.static('public'))
 app.use(express.urlencoded({extended: true}));//deze regel code gebruiken vanwege middelware zodat de data leesbaar gemaakt word
 // Stel het poortnummer in waar express op moet gaan luisteren
 app.set('port', process.env.PORT || 8001)
@@ -36,37 +34,78 @@ app.listen(app.get('port'), function () {
 
 
 // variable voor de index route
-const apiUrl = 'https://fdnd-agency.directus.app/items/'
-const huizenHome = await fetchJson(apiUrl + 'f_houses')
-const feedbackUrl = await fetchJson(apiUrl + 'f_feedback')
-const usersUrl = await fetchJson(apiUrl + `f_users/?fields=*.*`)
-const gelukt = 'uw score is toegevoegd';
+// const apiUrl = 'https://fdnd-agency.directus.app/items/'
+// const huizenHome = await fetchJson(apiUrl + 'f_houses')
+// const feedbackUrl = await fetchJson(apiUrl + 'f_feedback')
+// const usersUrl = await fetchJson(apiUrl + `f_users/?fields=*.*`)
+// const gelukt = 'uw score is toegevoegd';
+// //
+// // let ratings = ''
+// let ratings = []
+
+
+
+
 //
-// let ratings = ''
-let ratings = []
+// // Get Route voor de index
+// app.get('/', function (request, response) {
+//     // fetch data directus table f_feedback
+//     const apiUrl = 'https://fdnd-agency.directus.app/items/';
+//     const huizenHome =  fetchJson(apiUrl + 'f_houses');
+//     const feedbackUrl =  fetchJson(apiUrl + 'f_feedback');
+//     const usersUrl =  fetchJson(apiUrl + `f_users/?fields=*.*`);
+//     let ratings = []
+//
+//
+//     fetchJson(apiUrl + 'f_feedback').then((BeoordelingData) => {
+//         // console.log(BeoordelingData)
+//
+//         response.render('index', {
+//             alleHuizen: huizenHome.data,
+//             alleRatings: feedbackUrl.data,
+//             users: usersUrl.data,
+//             ratings: ratings,
+//         })
+//         // console.log(ratings)
+//     })
+// })
 
 
+app.get('/', async function (request, response) {
+    try {
+        const apiUrl = 'https://fdnd-agency.directus.app/items/';
+        let ratings = []
+        // Fetch data concurrently using Promise.all
+        const [huizenHome, feedbackUrl, usersUrl] = await Promise.all([
+            fetchJson(apiUrl + 'f_houses'),
+            fetchJson(apiUrl + 'f_feedback'),
+            fetchJson(apiUrl + `f_users/?fields=*.*`),
+        ]);
 
+        // Process the fetched data (optional)
+        // ... (e.g., transform or filter data)
 
-
-// Get Route voor de index
-app.get('/', function (request, response) {
-    // fetch data directus table f_feedback
-    fetchJson(apiUrl + 'f_feedback').then((BeoordelingData) => {
-        // console.log(BeoordelingData)
-
+        // Render the template with fetched data
         response.render('index', {
-            alleHuizen: huizenHome.data,
+            alleHuizen: huizenHome.data, // Assuming 'data' property holds the actual data
             alleRatings: feedbackUrl.data,
             users: usersUrl.data,
-            ratings: ratings,
-        })
-        // console.log(ratings)
-    })
-})
+            ratings: ratings, // Assuming you have logic to populate 'ratings' elsewhere
+        });
+    } catch (error) {
+        console.error('Error fetching data:', error);
+        // Handle errors gracefully (e.g., render error page or return error message)
+        response.status(500).send('Error fetching data');
+    }
+});
+
 app.post('/', function (request, response) {
     console.log(request.body)
-
+    const apiUrl = 'https://fdnd-agency.directus.app/items/';
+    const huizenHome =  fetchJson(apiUrl + 'f_houses');
+    const feedbackUrl =  fetchJson(apiUrl + 'f_feedback');
+    const usersUrl =  fetchJson(apiUrl + `f_users/?fields=*.*`);
+    let ratings = []
     // posten naar directus..
     fetch(`${apiUrl}f_feedback/`, {
         method: 'POST',
@@ -90,6 +129,14 @@ app.post('/', function (request, response) {
 
 app.get('/huis/:id', function (request, response) {
     // request.params.id gebruik je zodat je de exacte huis kan weergeven dit is een routeparmater naar de route van die huis
+    const apiUrl = 'https://fdnd-agency.directus.app/items/';
+    const huizenHome =  fetchJson(apiUrl + 'f_houses');
+    const feedbackUrl =  fetchJson(apiUrl + 'f_feedback');
+    const usersUrl =  fetchJson(apiUrl + `f_users/?fields=*.*`);
+    const gelukt = 'uw score is toegevoegd';
+    let ratings = []
+
+
     const url = `https://fdnd-agency.directus.app/items/f_houses/${request.params.id}/?fields=*.*.*`
     fetchJson(url)
         .then((apiData) => {
@@ -113,8 +160,13 @@ app.get('/score/:id', function (request, response) {
     const feedbackUrl = `https://fdnd-agency.directus.app/items/f_feedback/?filter[house][_eq]=${request.params.id}`;
     // hier moet een
     const houseUrl = `https://fdnd-agency.directus.app/items/f_houses/${request.params.id}/?fields=*.*`;
-
     // deze data blijft staan omdat ikk het niet dynamisch krijg
+
+    const apiUrl = 'https://fdnd-agency.directus.app/items/';
+    const huizenHome =  fetchJson(apiUrl + 'f_houses');
+    const usersUrl =  fetchJson(apiUrl + `f_users/?fields=*.*`);
+    let ratings = []
+    const gelukt = 'uw score is toegevoegd';
     const staticData = {
         general: 5,
         kitchen: 5,
@@ -143,7 +195,11 @@ app.get('/score/:id', function (request, response) {
 app.get('/succes', function (request, response) {
     const feedbackUrl = `https://fdnd-agency.directus.app/items/f_feedback/?filter[house][_eq]=${request.params.id}`;
     // hier moet een
-
+    const apiUrl = 'https://fdnd-agency.directus.app/items/';
+    const huizenHome =  fetchJson(apiUrl + 'f_houses');
+    const usersUrl =  fetchJson(apiUrl + `f_users/?fields=*.*`);
+    let ratings = []
+    let gelukt = 'uw score is toegevoegd'
     // use a promise.all because the tables are not connected to each other
     Promise.all([
         fetchJson(feedbackUrl),
